@@ -32,12 +32,6 @@ else
     exit 0
 fi
 
-# 检查配置文件是否禁用通知
-if [ -f "$SCRIPT_DIR/.hooks-disabled" ]; then
-    echo "=== Hook Disabled: $TIMESTAMP ===" >> "$LOG_FILE"
-    echo "Claude hooks disabled via .hooks-disabled file" >> "$LOG_FILE"
-    exit 0
-fi
 
 # 记录执行开始
 echo "=== Hook Execution Start: $TIMESTAMP ===" >> "$LOG_FILE"
@@ -97,7 +91,7 @@ if '|||' in full_summary:
         echo "No duration found in summary" >> "$LOG_FILE"
     fi
 else
-    SUMMARY="Claude Code 任务完成"
+    SUMMARY="Task completed | 任务完成"
     echo "Using default summary (no transcript file)" >> "$LOG_FILE"
 fi
 
@@ -112,22 +106,55 @@ fi
 ESCAPED_SUMMARY=$(echo "$SUMMARY" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' | tr -d '\n')
 ESCAPED_DURATION=$(echo "$DURATION" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
-# 构造消息内容
-if [ -n "$DURATION" ]; then
-    MESSAGE="{
-      \"msg_type\": \"text\",
-      \"content\": {
-        \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n⏱️ 耗时: $ESCAPED_DURATION\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
-      }
-    }"
-else
-    MESSAGE="{
-      \"msg_type\": \"text\",
-      \"content\": {
-        \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
-      }
-    }"
+# 获取语言设置，必须指定 en 或 zh
+LANG_SETTING=${NOTIFICATION_LANG}
+
+# 检查语言设置是否有效
+if [ "$LANG_SETTING" != "en" ] && [ "$LANG_SETTING" != "zh" ]; then
+    echo "错误：必须在 config.sh 中设置 NOTIFICATION_LANG 为 'en' 或 'zh'" >> "$LOG_FILE"
+    echo "Error: NOTIFICATION_LANG must be set to 'en' or 'zh' in config.sh"
+    exit 1
 fi
+
+# 根据语言设置构造消息内容
+case "$LANG_SETTING" in
+    "en")
+        # 英文通知
+        if [ -n "$DURATION" ]; then
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code Task Completed\\n\\n📋 Summary: $ESCAPED_SUMMARY\\n⏱️ Duration: $ESCAPED_DURATION\\n\\n⏰ Time: $TIMESTAMP\\n📂 Directory: $(pwd)\"
+              }
+            }"
+        else
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code Task Completed\\n\\n📋 Summary: $ESCAPED_SUMMARY\\n\\n⏰ Time: $TIMESTAMP\\n📂 Directory: $(pwd)\"
+              }
+            }"
+        fi
+        ;;
+    "zh")
+        # 中文通知
+        if [ -n "$DURATION" ]; then
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n⏱️ 耗时: $ESCAPED_DURATION\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
+              }
+            }"
+        else
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
+              }
+            }"
+        fi
+        ;;
+esac
 
 # 发送请求到 Lark
 echo "Sending message to Lark..." >> "$LOG_FILE"

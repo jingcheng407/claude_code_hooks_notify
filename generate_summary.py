@@ -100,8 +100,8 @@ def extract_conversation_summary(transcript_path):
             latest_request = user_messages[-1]
             # 移除换行符和多余空格
             latest_request = ' '.join(latest_request.split())
-            if len(latest_request) > 30:
-                latest_request = latest_request[:30] + "..."
+            if len(latest_request) > 50:
+                latest_request = latest_request[:50] + "..."
             summary_parts.append(f"最近请求: {latest_request}")
         
         if assistant_actions:

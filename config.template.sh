@@ -4,5 +4,5 @@
 # Lark/飞书 webhook URL
 WEBHOOK_URL="https://open.larksuite.com/open-apis/bot/v2/hook/YOUR_WEBHOOK_HERE"
 
-# 可选：自定义通知消息格式
-# NOTIFICATION_ENABLED=true
+# 通知语言设置 (必需)
+NOTIFICATION_LANG="en"  # 必须设置为: en(英文) 或 zh(中文)

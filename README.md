@@ -37,26 +37,32 @@ cd claude-code-hooks
 ```
 
 ### 2. Auto-install with Claude Code
-Open Claude Code and paste this prompt (replace with your Lark webhook):
+Open Claude Code and paste this prompt, then modify:
+1. **Replace your Lark webhook URL**
+2. **Specify notification language**
 
 ```
-请帮我安装这个 Claude Code Hook 通知系统。
+Please help me install this Claude Code Hook notification system.
 
-我的 Lark webhook URL 是：https://open.larksuite.com/open-apis/bot/v2/hook/YOUR_WEBHOOK_HERE
+My Lark webhook URL is: https://open.larksuite.com/open-apis/bot/v2/hook/YOUR_WEBHOOK_HERE
+I prefer notification language: English (Please must choose: English/Chinese)
 
-请执行以下安装步骤：
-1. 设置所有脚本文件的执行权限（chmod +x *.sh claude-notify claude-silent）
-2. 复制 config.template.sh 为 config.sh
-3. 在 config.sh 中替换 WEBHOOK_URL 为我提供的地址
-4. 读取当前的 ~/.claude/settings.json 配置
-5. 在 settings.json 中添加 Stop hook 配置，指向当前目录的 send_smart_notification.sh 脚本的绝对路径
-6. 创建 logs 目录（如果不存在）
-7. 运行测试验证安装是否成功
+Please execute the following installation steps:
+1. Set execution permissions for all script files (chmod +x *.sh claude-notify claude-silent)
+2. Copy config.template.sh to config.sh
+3. Replace WEBHOOK_URL in config.sh with the address I provided
+4. Based on my language preference, set notification language in config.sh:
+   - English: NOTIFICATION_LANG="en" 
+   - Chinese: NOTIFICATION_LANG="zh"
+5. Read the current ~/.claude/settings.json configuration
+6. Add Stop hook configuration in settings.json, pointing to the absolute path of send_smart_notification.sh script in the current directory
+7. Create logs directory (if it doesn't exist)
+8. Run tests to verify the installation is successful
 
-如果 ~/.claude/settings.json 不存在，请创建一个新的配置文件。
-如果已存在 hooks 配置，请合并而不是覆盖现有配置。
+If ~/.claude/settings.json doesn't exist, please create a new configuration file.
+If hooks configuration already exists, please merge rather than overwrite existing configuration.
 
-安装完成后，请告诉我如何测试通知功能。
+After installation is complete, please tell me how to test the notification function.
 ```
 
 ### 3. Start using
@@ -66,9 +72,12 @@ claude
 
 # Enable notifications
 CC_HOOKS_NOTIFY=on claude
+
+# Or use the launcher script
+./claude-notify
 ```
 
-> 💡 **Pro tip**: See [install.md](install.md) for detailed installation guide and [claude_install_prompt.md](claude_install_prompt.md) for ready-to-copy prompt.
+> 💡 **Pro tip**: See [install.md](install.md) for detailed installation guide.
 
 ## 📋 Prerequisites
 
@@ -83,10 +92,9 @@ CC_HOOKS_NOTIFY=on claude
 
 | Method | Command | Description |
 |--------|---------|-------------|
-| **Environment Variable** | `CC_HOOKS_NOTIFY=on claude` | Temporary enable |
+| **Environment Variable** | `CC_HOOKS_NOTIFY=on claude` | Enable notifications |
 | **Launch Scripts** | `./claude-notify` | Enable notifications |
 |  | `./claude-silent` | Disable notifications |
-| **Toggle Script** | `./toggle-hooks.sh on/off/status` | Persistent control |
 
 ### Environment Variables
 
@@ -96,21 +104,33 @@ CC_HOOKS_NOTIFY=on claude
 
 ### Configuration Files
 
-- `.hooks-disabled` - Created by toggle script to disable notifications
+- `config.sh` - Main configuration file (webhook URL and language settings)
 - `logs/hook_execution.log` - Execution logs (auto-created)
+
+### Language Settings
+
+You must configure notification language in `config.sh`:
+
+| Setting | Description |
+|---------|-------------|
+| `NOTIFICATION_LANG="en"` | Pure English notifications |
+| `NOTIFICATION_LANG="zh"` | Pure Chinese notifications |
+
+**Note**: Language setting is required. You must choose either "en" or "zh".
 
 ## 📱 Notification Example
 
 <div align="center">
 
+**English (NOTIFICATION_LANG="en")**:
 ```
-🤖 Claude Code 完成通知
+🤖 Claude Code Task Completed
 
-📋 摘要: 最近请求: 创建React组件 | 执行了: Write, Edit | 共3轮对话
-⏱️ 耗时: 2分30秒
+📋 Summary: Create React Component
+⏱️ Duration: 2分30秒
 
-⏰ 时间: 2025-08-21 15:30:45
-📂 目录: /Users/username/project
+⏰ Time: 2025-08-21 15:30:45
+📂 Directory: /Users/username/project
 ```
 
 </div>
@@ -122,11 +142,9 @@ claude-code-hooks/
 ├── 📄 README.md                    # This file
 ├── 📄 README_zh.md                 # Chinese documentation
 ├── 📋 install.md                   # Installation guide
-├── 📝 claude_install_prompt.md     # Ready-to-copy Claude prompt
 ├── ⚙️ config.template.sh           # Configuration template
 ├── ⚙️ send_smart_notification.sh   # Main hook script
 ├── 🐍 generate_summary.py          # Smart summary generator
-├── 🔧 toggle-hooks.sh              # Toggle control script
 ├── 🔔 claude-notify               # Enable notifications launcher
 ├── 🔕 claude-silent               # Disable notifications launcher
 ├── 🚫 .gitignore                  # Git ignore rules
@@ -167,7 +185,7 @@ if len(latest_request) > 50:  # Change from 30 to 50
 
 1. Check if notifications are enabled:
    ```bash
-   ./toggle-hooks.sh status
+   echo $CC_HOOKS_NOTIFY
    ```
 
 2. Verify Claude Code hooks configuration:
@@ -178,6 +196,13 @@ if len(latest_request) > 50:  # Change from 30 to 50
 3. Check execution logs:
    ```bash
    tail -f logs/hook_execution.log
+   ```
+
+4. Test manually:
+   ```bash
+   # Export environment variable first
+   export CC_HOOKS_NOTIFY=on
+   ./send_smart_notification.sh
    ```
 
 </details>

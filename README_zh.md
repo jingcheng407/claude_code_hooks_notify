@@ -37,21 +37,27 @@ cd claude-code-hooks
 ```
 
 ### 2. 使用 Claude Code 自动安装
-打开 Claude Code，粘贴以下提示词（替换为你的 Lark webhook 地址）：
+打开 Claude Code，粘贴以下提示词并修改：
+1. **替换你的 Lark webhook 地址**
+2. **指定通知语言**
 
 ```
 请帮我安装这个 Claude Code Hook 通知系统。
 
 我的 Lark webhook URL 是：https://open.larksuite.com/open-apis/bot/v2/hook/你的_WEBHOOK_地址
+我希望通知语言设置为：中文 (请必须选择: 中文/English)
 
 请执行以下安装步骤：
 1. 设置所有脚本文件的执行权限（chmod +x *.sh claude-notify claude-silent）
 2. 复制 config.template.sh 为 config.sh
 3. 在 config.sh 中替换 WEBHOOK_URL 为我提供的地址
-4. 读取当前的 ~/.claude/settings.json 配置
-5. 在 settings.json 中添加 Stop hook 配置，指向当前目录的 send_smart_notification.sh 脚本的绝对路径
-6. 创建 logs 目录（如果不存在）
-7. 运行测试验证安装是否成功
+4. 根据我选择的语言偏好，在 config.sh 中设置通知语言：
+   - 中文：NOTIFICATION_LANG="zh"
+   - English：NOTIFICATION_LANG="en"
+5. 读取当前的 ~/.claude/settings.json 配置
+6. 在 settings.json 中添加 Stop hook 配置，指向当前目录的 send_smart_notification.sh 脚本的绝对路径
+7. 创建 logs 目录（如果不存在）
+8. 运行测试验证安装是否成功
 
 如果 ~/.claude/settings.json 不存在，请创建一个新的配置文件。
 如果已存在 hooks 配置，请合并而不是覆盖现有配置。
@@ -66,9 +72,12 @@ claude
 
 # 启用通知
 CC_HOOKS_NOTIFY=on claude
+
+# 或使用启动脚本
+./claude-notify
 ```
 
-> 💡 **小贴士**：查看 [install.md](install.md) 获取详细安装指南，[claude_install_prompt.md](claude_install_prompt.md) 包含可直接复制的提示词。
+> 💡 **小贴士**：查看 [install.md](install.md) 获取详细安装指南。
 
 ## 📋 系统要求
 
@@ -83,10 +92,9 @@ CC_HOOKS_NOTIFY=on claude
 
 | 方法 | 命令 | 说明 |
 |------|------|------|
-| **环境变量** | `CC_HOOKS_NOTIFY=on claude` | 临时启用 |
+| **环境变量** | `CC_HOOKS_NOTIFY=on claude` | 启用通知 |
 | **启动脚本** | `./claude-notify` | 启用通知 |
 |  | `./claude-silent` | 禁用通知 |
-| **切换脚本** | `./toggle-hooks.sh on/off/status` | 持久化控制 |
 
 ### 环境变量
 
@@ -96,17 +104,29 @@ CC_HOOKS_NOTIFY=on claude
 
 ### 配置文件
 
-- `.hooks-disabled` - 切换脚本创建的禁用标记文件
+- `config.sh` - 主配置文件（webhook URL 和语言设置）
 - `logs/hook_execution.log` - 执行日志（自动创建）
+
+### 语言设置
+
+你必须在 `config.sh` 中配置通知语言：
+
+| 设置 | 说明 |
+|------|------|
+| `NOTIFICATION_LANG="en"` | Pure English notifications |
+| `NOTIFICATION_LANG="zh"` | 纯中文通知 |
+
+**注意**：语言设置是必需的，你必须选择 "en" 或 "zh" 其中一个。
 
 ## 📱 通知示例
 
 <div align="center">
 
+**中文 (NOTIFICATION_LANG="zh")**:
 ```
 🤖 Claude Code 完成通知
 
-📋 摘要: 最近请求: 创建React组件 | 执行了: Write, Edit | 共3轮对话
+📋 摘要: 创建React组件
 ⏱️ 耗时: 2分30秒
 
 ⏰ 时间: 2025-08-21 15:30:45
@@ -122,11 +142,9 @@ claude-code-hooks/
 ├── 📄 README.md                    # 英文说明文档
 ├── 📄 README_zh.md                 # 中文说明文档（本文件）
 ├── 📋 install.md                   # 安装指南
-├── 📝 claude_install_prompt.md     # 可直接复制的 Claude 提示词
 ├── ⚙️ config.template.sh           # 配置文件模板
 ├── ⚙️ send_smart_notification.sh   # 主 Hook 脚本
 ├── 🐍 generate_summary.py          # 智能摘要生成器
-├── 🔧 toggle-hooks.sh              # 切换控制脚本
 ├── 🔔 claude-notify               # 启用通知启动器
 ├── 🔕 claude-silent               # 禁用通知启动器
 ├── 🚫 .gitignore                  # Git 忽略规则
@@ -184,7 +202,7 @@ claude                              # 禁用通知（默认）
 
 1. 检查通知是否启用：
    ```bash
-   ./toggle-hooks.sh status
+   echo $CC_HOOKS_NOTIFY
    ```
 
 2. 验证 Claude Code hooks 配置：
@@ -195,6 +213,13 @@ claude                              # 禁用通知（默认）
 3. 查看执行日志：
    ```bash
    tail -f logs/hook_execution.log
+   ```
+
+4. 手动测试：
+   ```bash
+   # 先导出环境变量
+   export CC_HOOKS_NOTIFY=on
+   ./send_smart_notification.sh
    ```
 
 </details>
