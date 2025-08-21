@@ -12,6 +12,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 日志文件路径
 LOG_FILE="$SCRIPT_DIR/logs/hook_execution.log"
 
+# 检查通知开关状态
+# 默认禁用，需要明确设置为 on/ON/enabled/true 才启用
+if [ "$CC_HOOKS_NOTIFY" = "on" ] || [ "$CC_HOOKS_NOTIFY" = "ON" ] || [ "$CC_HOOKS_NOTIFY" = "enabled" ] || [ "$CC_HOOKS_NOTIFY" = "true" ] || [ "$CC_HOOKS_NOTIFY" = "1" ]; then
+    # 启用状态，继续执行
+    echo "=== Hook Enabled: $TIMESTAMP ===" >> "$LOG_FILE"
+    echo "Claude hooks enabled via CC_HOOKS_NOTIFY=$CC_HOOKS_NOTIFY" >> "$LOG_FILE"
+else
+    # 默认禁用状态
+    echo "=== Hook Disabled: $TIMESTAMP ===" >> "$LOG_FILE"
+    echo "Claude hooks disabled by default (set CC_HOOKS_NOTIFY=on to enable)" >> "$LOG_FILE"
+    exit 0
+fi
+
+# 检查配置文件是否禁用通知
+if [ -f "$SCRIPT_DIR/.hooks-disabled" ]; then
+    echo "=== Hook Disabled: $TIMESTAMP ===" >> "$LOG_FILE"
+    echo "Claude hooks disabled via .hooks-disabled file" >> "$LOG_FILE"
+    exit 0
+fi
+
 # 记录执行开始
 echo "=== Hook Execution Start: $TIMESTAMP ===" >> "$LOG_FILE"
 

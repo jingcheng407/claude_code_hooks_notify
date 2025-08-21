@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Claude Code 通知启动脚本 - 启用 Hook 通知
+
+export CC_HOOKS_NOTIFY=on
+
+echo "🔔 Claude Code 启动 (通知已启用)"
+echo "使用 'claude' 命令可禁用通知"
+
+# 启动 Claude Code 并传递所有参数
+claude "$@"
