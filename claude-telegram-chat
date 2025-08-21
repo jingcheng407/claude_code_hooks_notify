@@ -1,0 +1,151 @@
+#!/bin/bash
+#
+# Claude Code Telegram 聊天模式
+# 持续的Telegram ↔ Claude Code 双向对话
+#
+
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 加载配置
+CONFIG_FILE="$SCRIPT_DIR/config.sh"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "错误：配置文件 config.sh 不存在"
+    exit 1
+fi
+source "$CONFIG_FILE"
+
+# 检查配置
+if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_USER_KEY" ]; then
+    echo "错误：Telegram配置不完整"
+    exit 1
+fi
+
+# 导出环境变量
+export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
+export TELEGRAM_USER_KEY="$TELEGRAM_USER_KEY"
+export CC_HOOKS_NOTIFY="on"
+
+# 日志
+LOG_FILE="$SCRIPT_DIR/logs/chat_session.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+    echo "$1"
+}
+
+# 发送启动消息
+log "启动Telegram聊天模式"
+python3 "$SCRIPT_DIR/telegram_bridge.py" send "🚀 Claude Code聊天模式启动
+
+现在你可以：
+1. 在Telegram中发送消息
+2. 系统会启动Claude Code处理你的请求  
+3. 处理完成后会通过通知发送结果
+4. 发送 'quit' 退出聊天模式
+
+💡 每条消息都会启动一个新的Claude会话"
+
+echo "🤖 Claude Code Telegram聊天模式"
+echo "=================================="
+echo "监听Telegram消息中..."
+echo "按 Ctrl+C 退出"
+echo ""
+
+# 清理函数
+cleanup() {
+    log "聊天模式退出"
+    python3 "$SCRIPT_DIR/telegram_bridge.py" send "🛑 Claude Code聊天模式已退出"
+    exit 0
+}
+trap cleanup SIGINT SIGTERM EXIT
+
+# 获取初始update_id
+LAST_UPDATE_ID=$(python3 -c "
+from telegram_bridge import TelegramBridge
+bridge = TelegramBridge()
+updates = bridge.get_updates(timeout=1)
+if updates:
+    print(max(update.get('update_id', 0) for update in updates))
+else:
+    print(0)
+")
+
+log "初始update_id: $LAST_UPDATE_ID"
+
+# 主循环：持续监听消息
+while true; do
+    # 获取新消息
+    NEW_MESSAGES=$(python3 -c "
+import sys
+sys.path.append('$SCRIPT_DIR')
+from telegram_bridge import TelegramBridge
+
+bridge = TelegramBridge()
+updates = bridge.get_updates(offset=$LAST_UPDATE_ID + 1, timeout=5)
+
+messages = []
+max_id = $LAST_UPDATE_ID
+
+for update in updates:
+    max_id = max(max_id, update.get('update_id', 0))
+    
+    if 'message' in update:
+        msg = update['message']
+        if (msg.get('chat', {}).get('id') == int(bridge.chat_id) and 
+            'text' in msg and 
+            not msg.get('from', {}).get('is_bot', False)):
+            
+            text = msg['text']
+            if bridge.user_key:
+                text = bridge._clean_reply_text(text)
+            
+            if text.strip():
+                messages.append(text.strip())
+
+# 输出格式: update_id|message1|message2|...
+if messages:
+    print(f'{max_id}|' + '|'.join(messages))
+else:
+    print(f'{max_id}|')
+" 2>/dev/null)
+
+    if [ -n "$NEW_MESSAGES" ]; then
+        # 解析结果
+        IFS='|' read -r NEW_UPDATE_ID MESSAGES <<< "$NEW_MESSAGES"
+        LAST_UPDATE_ID="$NEW_UPDATE_ID"
+        
+        # 处理每条消息
+        if [ -n "$MESSAGES" ]; then
+            IFS='|' read -ra MSG_ARRAY <<< "$MESSAGES"
+            for message in "${MSG_ARRAY[@]}"; do
+                if [ -n "$message" ]; then
+                    log "收到消息: $message"
+                    
+                    # 检查退出命令
+                    if [[ "$message" =~ ^(quit|exit|退出|/quit|/exit)$ ]]; then
+                        log "收到退出命令"
+                        exit 0
+                    fi
+                    
+                    # 启动Claude Code处理消息
+                    log "启动Claude Code处理: $message"
+                    echo "处理中: $message"
+                    
+                    # 在后台启动Claude Code
+                    (
+                        echo "$message" | claude code 2>&1
+                        log "Claude Code处理完成: $message"
+                    ) &
+                    
+                    # 等待一下避免并发过多
+                    sleep 2
+                fi
+            done
+        fi
+    fi
+    
+    # 短暂休息
+    sleep 1
+done

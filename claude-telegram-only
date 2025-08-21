@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# claude-telegram-only - 启动Claude Code并仅使用Telegram通知
+#
+# 这个脚本会：
+# 1. 启用Claude Code hooks通知
+# 2. 设置Telegram模式为仅Telegram（禁用Lark）
+# 3. 启动Claude Code
+#
+
+# 启用通知
+export CC_HOOKS_NOTIFY=on
+
+# 设置为仅Telegram模式
+export TELEGRAM_MODE=only
+
+# 启动Claude Code并传递所有参数
+echo "🚀 启动Claude Code (仅Telegram模式)"
+echo "📱 通知将仅发送到Telegram"
+echo "🔄 支持双向交互"
+echo ""
+
+claude "$@"

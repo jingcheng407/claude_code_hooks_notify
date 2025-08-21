@@ -24,6 +24,7 @@
 - ⏱️ **Automatic Duration Tracking** - Calculate and display task completion time
 - 💰 **Daily Cost Tracking** - Shows today's total Claude Code usage cost
 - 🔔 **Real-time Lark Integration** - Instant notifications to your Lark/Feishu workspace
+- 📱 **Telegram Bidirectional Communication** - Interactive two-way messaging with Telegram bot
 - 📊 **Comprehensive Logging** - Detailed execution logs with status tracking
 - 🎛️ **Flexible Control System** - Multiple ways to enable/disable notifications
 - 🔒 **Safe Defaults** - Notifications disabled by default for privacy
@@ -72,11 +73,27 @@ After installation is complete, please tell me how to test the notification func
 # Default: notifications disabled
 claude
 
-# Enable notifications
+# Enable Lark notifications only
 CC_HOOKS_NOTIFY=on claude
-
-# Or use the launcher script
 ./claude-notify
+
+# Enable both Lark and Telegram
+./claude-telegram
+
+# Enable Telegram only (interactive mode)
+./claude-telegram-only
+```
+
+### 4. Telegram Interactive Usage
+```bash
+# Test Telegram connection
+./claude_interactive.sh test
+
+# Send message to Telegram
+./claude_interactive.sh send "Hello from Claude!"
+
+# Wait for user reply (with timeout)
+./claude_interactive.sh send-wait "Should I continue?" 300
 ```
 
 
@@ -87,6 +104,7 @@ CC_HOOKS_NOTIFY=on claude
 - Python 3.7+
 - Node.js (for ccusage cost tracking)
 - Lark/Feishu webhook URL ([Setup Guide](https://open.larksuite.com/document/client-docs/bot-v3/add-custom-bot))
+- Telegram Bot Token (optional, for bidirectional communication)
 
 ## 🎛️ Configuration
 
@@ -95,8 +113,10 @@ CC_HOOKS_NOTIFY=on claude
 | Method | Command | Description |
 |--------|---------|-------------|
 | **Environment Variable** | `CC_HOOKS_NOTIFY=on claude` | Enable notifications |
-| **Launch Scripts** | `./claude-notify` | Enable notifications |
+| **Launch Scripts** | `./claude-notify` | Enable Lark notifications |
 |  | `./claude-silent` | Disable notifications |
+|  | `./claude-telegram` | Enable both Lark and Telegram |
+|  | `./claude-telegram-only` | Enable Telegram only |
 
 ### Environment Variables
 
@@ -119,6 +139,33 @@ You must configure notification language in `config.sh`:
 | `NOTIFICATION_LANG="zh"` | Pure Chinese notifications |
 
 **Note**: Language setting is required. You must choose either "en" or "zh".
+
+### Telegram Configuration (Optional)
+
+For bidirectional communication with Telegram:
+
+1. **Create Telegram Bot**:
+   - Message @BotFather on Telegram
+   - Use `/newbot` command and follow instructions
+   - Copy the Bot Token (format: `123456789:ABC-DEF...`)
+
+2. **Get Chat ID**:
+   - Send a message to your bot
+   - Visit: `https://api.telegram.org/bot<YourBotToken>/getUpdates`
+   - Find your `chat.id` in the response
+
+3. **Configure in `config.sh`**:
+   ```bash
+   TELEGRAM_BOT_TOKEN="your_bot_token_here"
+   TELEGRAM_CHAT_ID="your_chat_id_here"
+   TELEGRAM_MODE="on"  # off/on/only
+   ```
+
+| Setting | Values | Description |
+|---------|--------|-------------|
+| `TELEGRAM_MODE="off"` | Default | Telegram disabled |
+| `TELEGRAM_MODE="on"` | Dual channel | Both Lark and Telegram |
+| `TELEGRAM_MODE="only"` | Telegram only | Disable Lark notifications |
 
 ## 📱 Notification Example
 
@@ -147,8 +194,14 @@ claude-code-hooks/
 ├── ⚙️ config.template.sh           # Configuration template
 ├── ⚙️ send_smart_notification.sh   # Main hook script
 ├── 🐍 generate_summary.py          # Smart summary generator
-├── 🔔 claude-notify               # Enable notifications launcher
+├── 🔔 claude-notify               # Enable Lark notifications launcher
 ├── 🔕 claude-silent               # Disable notifications launcher
+├── 📱 claude-telegram             # Enable dual-channel launcher
+├── 📱 claude-telegram-only        # Enable Telegram-only launcher
+├── 🤖 telegram_bridge.py          # Telegram communication module
+├── 🎛️ claude_interactive.sh        # Interactive control script
+├── 🧪 test_telegram_bridge.py     # Unit tests
+├── 🧪 test_integration.sh         # Integration tests
 ├── 🚫 .gitignore                  # Git ignore rules
 ├── 📄 LICENSE                     # MIT License
 └── 📁 logs/                       # Execution logs directory
@@ -156,6 +209,36 @@ claude-code-hooks/
 ```
 
 ## 🛠️ Advanced Usage
+
+### Telegram Bidirectional Communication
+
+The system enables interactive workflows where Claude can wait for user input via Telegram:
+
+```bash
+# Example: Interactive approval workflow
+./claude_interactive.sh send-wait "Task completed. Deploy to production? (yes/no)" 180
+
+# Example: Get user input for next steps  
+USER_INPUT=$(./claude_interactive.sh send-wait "What should I implement next?" 300)
+echo "User requested: $USER_INPUT"
+
+# Example: Send notification without waiting
+./claude_interactive.sh send "Deployment started..."
+```
+
+**Integration in scripts:**
+```bash
+#!/bin/bash
+# Your script here...
+
+# Ask user for confirmation via Telegram
+if ./claude_interactive.sh send-wait "Process completed. Continue with cleanup? (yes/no)" 120 | grep -i "yes"; then
+    echo "User approved, continuing cleanup..."
+    # cleanup code here
+else
+    echo "User declined, skipping cleanup"
+fi
+```
 
 ### Custom Webhook Integration
 

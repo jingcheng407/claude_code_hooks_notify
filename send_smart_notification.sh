@@ -221,30 +221,131 @@ case "$LANG_SETTING" in
         ;;
 esac
 
-# 发送请求到 Lark
-echo "Sending message to Lark..." >> "$LOG_FILE"
-CURL_RESULT=$(curl -X POST \
-  -H "Content-Type: application/json" \
-  -d "$MESSAGE" \
-  "$WEBHOOK_URL" \
-  --silent \
-  --max-time 10 \
-  --write-out "HTTP_CODE:%{http_code}")
+# 发送通知的函数
+send_lark_notification() {
+    echo "Sending message to Lark..." >> "$LOG_FILE"
+    CURL_RESULT=$(curl -X POST \
+      -H "Content-Type: application/json" \
+      -d "$MESSAGE" \
+      "$WEBHOOK_URL" \
+      --silent \
+      --max-time 10 \
+      --write-out "HTTP_CODE:%{http_code}")
 
-# 记录发送结果
-HTTP_CODE=$(echo "$CURL_RESULT" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
-RESPONSE_BODY=$(echo "$CURL_RESULT" | sed 's/HTTP_CODE:[0-9]*$//')
+    # 记录发送结果
+    HTTP_CODE=$(echo "$CURL_RESULT" | grep -o "HTTP_CODE:[0-9]*" | cut -d: -f2)
+    RESPONSE_BODY=$(echo "$CURL_RESULT" | sed 's/HTTP_CODE:[0-9]*$//')
 
-echo "HTTP Status: $HTTP_CODE" >> "$LOG_FILE"
-echo "Response: $RESPONSE_BODY" >> "$LOG_FILE"
+    echo "Lark HTTP Status: $HTTP_CODE" >> "$LOG_FILE"
+    echo "Lark Response: $RESPONSE_BODY" >> "$LOG_FILE"
 
-if [ "$HTTP_CODE" = "200" ]; then
-    echo "Smart Lark notification sent successfully at $TIMESTAMP" >> "$LOG_FILE"
-    echo "Smart Lark notification sent at $TIMESTAMP"
-else
-    echo "ERROR: Failed to send notification. HTTP: $HTTP_CODE" >> "$LOG_FILE"
-    echo "ERROR: Failed to send notification at $TIMESTAMP"
-fi
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "Smart Lark notification sent successfully at $TIMESTAMP" >> "$LOG_FILE"
+        echo "Smart Lark notification sent at $TIMESTAMP"
+        return 0
+    else
+        echo "ERROR: Failed to send Lark notification. HTTP: $HTTP_CODE" >> "$LOG_FILE"
+        echo "ERROR: Failed to send Lark notification at $TIMESTAMP"
+        return 1
+    fi
+}
+
+send_telegram_notification() {
+    echo "Sending message to Telegram..." >> "$LOG_FILE"
+    
+    # 提取消息文本内容（从JSON中提取text字段）
+    TELEGRAM_TEXT=$(echo "$MESSAGE" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data['content']['text'])
+except Exception as e:
+    print('Failed to parse message', file=sys.stderr)
+    sys.exit(1)
+" 2>>"$LOG_FILE")
+
+    if [ $? -ne 0 ]; then
+        echo "ERROR: Failed to parse message for Telegram" >> "$LOG_FILE"
+        return 1
+    fi
+
+    # 使用telegram_bridge发送消息
+    export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
+    
+    # 支持用户绑定密钥或直接chat_id
+    if [ -n "$TELEGRAM_USER_KEY" ]; then
+        export TELEGRAM_USER_KEY="$TELEGRAM_USER_KEY"
+    elif [ -n "$TELEGRAM_CHAT_ID" ]; then
+        export TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
+    else
+        echo "ERROR: TELEGRAM_USER_KEY or TELEGRAM_CHAT_ID must be set" >> "$LOG_FILE"
+        return 1
+    fi
+    
+    TELEGRAM_RESULT=$(python3 "$SCRIPT_DIR/telegram_bridge.py" send "$TELEGRAM_TEXT" 2>&1)
+    TELEGRAM_EXIT_CODE=$?
+    
+    echo "Telegram result: $TELEGRAM_RESULT" >> "$LOG_FILE"
+    
+    if [ $TELEGRAM_EXIT_CODE -eq 0 ]; then
+        echo "Smart Telegram notification sent successfully at $TIMESTAMP" >> "$LOG_FILE"
+        echo "Smart Telegram notification sent at $TIMESTAMP"
+        return 0
+    else
+        echo "ERROR: Failed to send Telegram notification: $TELEGRAM_RESULT" >> "$LOG_FILE"
+        echo "ERROR: Failed to send Telegram notification at $TIMESTAMP"
+        return 1
+    fi
+}
+
+# 根据配置发送通知
+TELEGRAM_MODE_SETTING=${TELEGRAM_MODE:-"off"}
+echo "Telegram mode: $TELEGRAM_MODE_SETTING" >> "$LOG_FILE"
+
+case "$TELEGRAM_MODE_SETTING" in
+    "only")
+        # 仅使用Telegram
+        if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            send_telegram_notification
+        else
+            echo "ERROR: Telegram mode is 'only' but TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not configured" >> "$LOG_FILE"
+            echo "ERROR: Telegram configuration missing"
+            exit 1
+        fi
+        ;;
+    "on")
+        # 同时使用Lark和Telegram
+        LARK_SUCCESS=0
+        TELEGRAM_SUCCESS=0
+        
+        # 发送Lark通知
+        if send_lark_notification; then
+            LARK_SUCCESS=1
+        fi
+        
+        # 发送Telegram通知
+        if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            if send_telegram_notification; then
+                TELEGRAM_SUCCESS=1
+            fi
+        else
+            echo "WARNING: Telegram mode is 'on' but configuration is incomplete, skipping Telegram notification" >> "$LOG_FILE"
+        fi
+        
+        # 至少一个成功即认为成功
+        if [ $LARK_SUCCESS -eq 1 ] || [ $TELEGRAM_SUCCESS -eq 1 ]; then
+            echo "At least one notification sent successfully" >> "$LOG_FILE"
+        else
+            echo "ERROR: All notifications failed" >> "$LOG_FILE"
+            echo "ERROR: All notifications failed at $TIMESTAMP"
+            exit 1
+        fi
+        ;;
+    *)
+        # 默认使用Lark（保持现有行为）
+        send_lark_notification
+        ;;
+esac
 
 echo "=== Hook Execution End: $(date "+%Y-%m-%d %H:%M:%S") ===" >> "$LOG_FILE"
 echo "" >> "$LOG_FILE"

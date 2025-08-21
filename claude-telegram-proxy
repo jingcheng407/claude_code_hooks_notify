@@ -1,0 +1,170 @@
+#!/bin/bash
+#
+# Claude Code Telegram代理模式
+# 持续监听Telegram消息并作为Claude Code的输入
+#
+
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 加载配置
+CONFIG_FILE="$SCRIPT_DIR/config.sh"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "错误：配置文件 config.sh 不存在"
+    echo "请先配置Telegram设置"
+    exit 1
+fi
+source "$CONFIG_FILE"
+
+# 检查必要环境
+if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_USER_KEY" ]; then
+    echo "错误：Telegram配置不完整"
+    echo "请确保已配置 TELEGRAM_BOT_TOKEN 和 TELEGRAM_USER_KEY"
+    exit 1
+fi
+
+# 日志文件
+LOG_FILE="$SCRIPT_DIR/logs/proxy_execution.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+
+# 日志函数
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+    echo "$1"
+}
+
+# 清理函数
+cleanup() {
+    log "正在清理进程和文件..."
+    
+    # 清理Telegram监听器进程
+    if [ -n "$LISTENER_PID" ]; then
+        log "停止Telegram监听器 (PID: $LISTENER_PID)"
+        kill -TERM "$LISTENER_PID" 2>/dev/null || true
+        wait "$LISTENER_PID" 2>/dev/null || true
+    fi
+    
+    # 清理命名管道
+    if [ -e "$INPUT_PIPE" ]; then
+        log "删除输入管道: $INPUT_PIPE"
+        rm -f "$INPUT_PIPE"
+    fi
+    
+    # 清理Claude进程
+    if [ -n "$CLAUDE_PID" ]; then
+        log "停止Claude Code进程 (PID: $CLAUDE_PID)"
+        kill -TERM "$CLAUDE_PID" 2>/dev/null || true
+        wait "$CLAUDE_PID" 2>/dev/null || true
+    fi
+    
+    log "清理完成"
+    exit 0
+}
+
+# 设置信号处理
+trap cleanup SIGTERM SIGINT EXIT
+
+# 创建临时文件和管道
+TEMP_DIR=$(mktemp -d)
+INPUT_PIPE="$TEMP_DIR/claude_input"
+OUTPUT_PIPE="$TEMP_DIR/telegram_output"
+
+log "创建命名管道..."
+if ! mkfifo "$INPUT_PIPE"; then
+    log "错误：无法创建输入管道"
+    exit 1
+fi
+
+if ! mkfifo "$OUTPUT_PIPE"; then
+    log "错误：无法创建输出管道"
+    exit 1
+fi
+
+log "启动代理模式..."
+log "输入管道: $INPUT_PIPE"
+log "输出管道: $OUTPUT_PIPE"
+
+# 导出环境变量
+export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
+export TELEGRAM_USER_KEY="$TELEGRAM_USER_KEY"
+export CC_HOOKS_NOTIFY="$CC_HOOKS_NOTIFY"
+
+# 启动Telegram监听器（后台）
+log "启动Telegram监听器..."
+python3 "$SCRIPT_DIR/telegram_listener.py" --output "$OUTPUT_PIPE" &
+LISTENER_PID=$!
+log "Telegram监听器启动 (PID: $LISTENER_PID)"
+
+# 等待一下让监听器初始化
+sleep 2
+
+# 启动管道转发器（后台）
+log "启动管道转发器..."
+(
+    while IFS= read -r line; do
+        echo "$line" > "$INPUT_PIPE"
+    done < "$OUTPUT_PIPE"
+) &
+FORWARDER_PID=$!
+log "管道转发器启动 (PID: $FORWARDER_PID)"
+
+# 发送欢迎消息到Telegram
+log "发送启动消息到Telegram..."
+python3 "$SCRIPT_DIR/telegram_bridge.py" send "🚀 Claude Code代理模式已启动
+
+现在你可以直接在Telegram中与Claude Code对话：
+- 发送任何消息都会传递给Claude
+- Claude的回复会通过通知系统发送
+- 输入 /quit 退出代理模式
+
+💡 提示：保持这个终端窗口打开"
+
+# 提示用户
+echo "============================================="
+echo "🤖 Claude Code Telegram代理模式已启动"
+echo "============================================="
+echo
+echo "现在你可以："
+echo "1. 在Telegram中发送消息与Claude对话"
+echo "2. Claude的回复会通过通知发送到Telegram"
+echo "3. 发送 /quit 或按 Ctrl+C 退出"
+echo
+echo "代理状态："
+echo "- Telegram监听器: 运行中 (PID: $LISTENER_PID)"
+echo "- 管道转发器: 运行中 (PID: $FORWARDER_PID)"
+echo
+echo "日志文件: $LOG_FILE"
+echo "============================================="
+
+# 启动Claude Code，使用管道作为输入
+log "启动Claude Code..."
+
+# 在后台启动Claude Code，从管道读取输入
+claude code < "$INPUT_PIPE" &
+CLAUDE_PID=$!
+log "Claude Code启动 (PID: $CLAUDE_PID)"
+
+# 监控Claude Code和监听器进程
+while true; do
+    # 检查Telegram监听器是否还在运行
+    if ! kill -0 "$LISTENER_PID" 2>/dev/null; then
+        log "Telegram监听器进程已退出"
+        break
+    fi
+    
+    # 检查Claude Code是否还在运行
+    if ! kill -0 "$CLAUDE_PID" 2>/dev/null; then
+        log "Claude Code进程已退出"
+        break
+    fi
+    
+    # 检查是否收到退出命令
+    if [ -f "$TEMP_DIR/quit_signal" ]; then
+        log "收到退出信号"
+        break
+    fi
+    
+    sleep 5
+done
+
+log "代理模式退出"
