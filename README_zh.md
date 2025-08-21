@@ -22,6 +22,7 @@
 
 - 🧠 **智能对话摘要** - AI 驱动的摘要生成，支持多媒体消息
 - ⏱️ **自动时长跟踪** - 计算并显示任务完成时间
+- 💰 **今日成本跟踪** - 显示今天 Claude Code 使用的总成本
 - 🔔 **实时 Lark 集成** - 即时推送通知到你的 Lark/飞书工作空间
 - 📊 **全面日志记录** - 详细的执行日志和状态跟踪
 - 🎛️ **灵活控制系统** - 多种方式启用/禁用通知
@@ -48,16 +49,17 @@ cd claude-code-hooks
 我希望通知语言设置为：中文 (请必须选择: 中文/English)
 
 请执行以下安装步骤：
-1. 设置所有脚本文件的执行权限（chmod +x *.sh claude-notify claude-silent）
-2. 复制 config.template.sh 为 config.sh
-3. 在 config.sh 中替换 WEBHOOK_URL 为我提供的地址
-4. 根据我选择的语言偏好，在 config.sh 中设置通知语言：
+1. 安装成本跟踪工具 ccusage：npm install -g ccusage（或使用 npx ccusage@latest）
+2. 设置所有脚本文件的执行权限（chmod +x *.sh claude-notify claude-silent）
+3. 复制 config.template.sh 为 config.sh
+4. 在 config.sh 中替换 WEBHOOK_URL 为我提供的地址
+5. 根据我选择的语言偏好，在 config.sh 中设置通知语言：
    - 中文：NOTIFICATION_LANG="zh"
    - English：NOTIFICATION_LANG="en"
-5. 读取当前的 ~/.claude/settings.json 配置
-6. 在 settings.json 中添加 Stop hook 配置，指向当前目录的 send_smart_notification.sh 脚本的绝对路径
-7. 创建 logs 目录（如果不存在）
-8. 运行测试验证安装是否成功
+6. 读取当前的 ~/.claude/settings.json 配置
+7. 在 settings.json 中添加 Stop hook 配置，指向当前目录的 send_smart_notification.sh 脚本的绝对路径
+8. 创建 logs 目录（如果不存在）
+9. 运行测试验证安装是否成功
 
 如果 ~/.claude/settings.json 不存在，请创建一个新的配置文件。
 如果已存在 hooks 配置，请合并而不是覆盖现有配置。
@@ -84,6 +86,7 @@ CC_HOOKS_NOTIFY=on claude
 - 已安装 [Claude Code](https://claude.ai/code)
 - Bash shell（macOS/Linux）
 - Python 3.7+
+- Node.js（用于 ccusage 成本跟踪）
 - Lark/飞书 webhook URL
 
 ## 🎛️ 使用配置
@@ -128,6 +131,7 @@ CC_HOOKS_NOTIFY=on claude
 
 📋 摘要: 创建React组件
 ⏱️ 耗时: 2分30秒
+💰 今日累计: $42.66
 
 ⏰ 时间: 2025-08-21 15:30:45
 📂 目录: /Users/username/project

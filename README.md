@@ -22,6 +22,7 @@
 
 - 🧠 **Smart Conversation Summarization** - AI-powered summary generation with multimedia support
 - ⏱️ **Automatic Duration Tracking** - Calculate and display task completion time
+- 💰 **Daily Cost Tracking** - Shows today's total Claude Code usage cost
 - 🔔 **Real-time Lark Integration** - Instant notifications to your Lark/Feishu workspace
 - 📊 **Comprehensive Logging** - Detailed execution logs with status tracking
 - 🎛️ **Flexible Control System** - Multiple ways to enable/disable notifications
@@ -48,16 +49,17 @@ My Lark webhook URL is: https://open.larksuite.com/open-apis/bot/v2/hook/YOUR_WE
 I prefer notification language: English (Please must choose: English/Chinese)
 
 Please execute the following installation steps:
-1. Set execution permissions for all script files (chmod +x *.sh claude-notify claude-silent)
-2. Copy config.template.sh to config.sh
-3. Replace WEBHOOK_URL in config.sh with the address I provided
-4. Based on my language preference, set notification language in config.sh:
+1. Install ccusage for cost tracking: npm install -g ccusage (or use npx ccusage@latest)
+2. Set execution permissions for all script files (chmod +x *.sh claude-notify claude-silent)
+3. Copy config.template.sh to config.sh
+4. Replace WEBHOOK_URL in config.sh with the address I provided
+5. Based on my language preference, set notification language in config.sh:
    - English: NOTIFICATION_LANG="en" 
    - Chinese: NOTIFICATION_LANG="zh"
-5. Read the current ~/.claude/settings.json configuration
-6. Add Stop hook configuration in settings.json, pointing to the absolute path of send_smart_notification.sh script in the current directory
-7. Create logs directory (if it doesn't exist)
-8. Run tests to verify the installation is successful
+6. Read the current ~/.claude/settings.json configuration
+7. Add Stop hook configuration in settings.json, pointing to the absolute path of send_smart_notification.sh script in the current directory
+8. Create logs directory (if it doesn't exist)
+9. Run tests to verify the installation is successful
 
 If ~/.claude/settings.json doesn't exist, please create a new configuration file.
 If hooks configuration already exists, please merge rather than overwrite existing configuration.
@@ -84,6 +86,7 @@ CC_HOOKS_NOTIFY=on claude
 - [Claude Code](https://claude.ai/code) installed
 - Bash shell (macOS/Linux)
 - Python 3.7+
+- Node.js (for ccusage cost tracking)
 - Lark/Feishu webhook URL
 
 ## 🎛️ Configuration
@@ -128,6 +131,7 @@ You must configure notification language in `config.sh`:
 
 📋 Summary: Create React Component
 ⏱️ Duration: 2分30秒
+💰 Today's Total: $42.66
 
 ⏰ Time: 2025-08-21 15:30:45
 📂 Directory: /Users/username/project

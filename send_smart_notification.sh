@@ -102,9 +102,46 @@ if [ $# -gt 0 ]; then
     echo "Using command line summary: $SUMMARY" >> "$LOG_FILE"
 fi
 
+# 获取今日总花费信息
+COST_INFO=""
+if command -v ccusage >/dev/null 2>&1; then
+    echo "Getting today's total cost information..." >> "$LOG_FILE"
+    
+    # 获取今日总花费
+    COST_JSON=$(ccusage daily --json 2>/dev/null | python3 -c "
+import json, sys
+from datetime import datetime
+try:
+    data = json.load(sys.stdin)
+    today = datetime.now().strftime('%Y-%m-%d')
+    for day in data.get('daily', []):
+        if day.get('date') == today:
+            cost = day.get('totalCost', 0)
+            if cost > 0:
+                print(f'{cost:.2f}')
+            else:
+                print('0.00')
+            break
+    else:
+        print('0.00')
+except Exception as e:
+    print('0.00')
+" 2>>"$LOG_FILE")
+    
+    if [ "$COST_JSON" != "0.00" ]; then
+        COST_INFO="$COST_JSON"
+        echo "Found today's total cost: \$$COST_INFO" >> "$LOG_FILE"
+    else
+        echo "No cost information found for today" >> "$LOG_FILE"
+    fi
+else
+    echo "ccusage command not available, skipping cost calculation" >> "$LOG_FILE"
+fi
+
 # 转义消息内容中的特殊字符
 ESCAPED_SUMMARY=$(echo "$SUMMARY" | sed 's/\\/\\\\/g; s/"/\\"/g; s/$/\\n/g' | tr -d '\n')
 ESCAPED_DURATION=$(echo "$DURATION" | sed 's/\\/\\\\/g; s/"/\\"/g')
+ESCAPED_COST=$(echo "$COST_INFO" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
 # 获取语言设置，必须指定 en 或 zh
 LANG_SETTING=${NOTIFICATION_LANG}
@@ -120,11 +157,25 @@ fi
 case "$LANG_SETTING" in
     "en")
         # 英文通知
-        if [ -n "$DURATION" ]; then
+        if [ -n "$DURATION" ] && [ -n "$COST_INFO" ]; then
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code Task Completed\\n\\n📋 Summary: $ESCAPED_SUMMARY\\n⏱️ Duration: $ESCAPED_DURATION\\n💰 Today's Total: \$$ESCAPED_COST\\n\\n⏰ Time: $TIMESTAMP\\n📂 Directory: $(pwd)\"
+              }
+            }"
+        elif [ -n "$DURATION" ]; then
             MESSAGE="{
               \"msg_type\": \"text\",
               \"content\": {
                 \"text\": \"🤖 Claude Code Task Completed\\n\\n📋 Summary: $ESCAPED_SUMMARY\\n⏱️ Duration: $ESCAPED_DURATION\\n\\n⏰ Time: $TIMESTAMP\\n📂 Directory: $(pwd)\"
+              }
+            }"
+        elif [ -n "$COST_INFO" ]; then
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code Task Completed\\n\\n📋 Summary: $ESCAPED_SUMMARY\\n💰 Today's Total: \$$ESCAPED_COST\\n\\n⏰ Time: $TIMESTAMP\\n📂 Directory: $(pwd)\"
               }
             }"
         else
@@ -138,11 +189,25 @@ case "$LANG_SETTING" in
         ;;
     "zh")
         # 中文通知
-        if [ -n "$DURATION" ]; then
+        if [ -n "$DURATION" ] && [ -n "$COST_INFO" ]; then
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n⏱️ 耗时: $ESCAPED_DURATION\\n💰 今日累计: \$$ESCAPED_COST\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
+              }
+            }"
+        elif [ -n "$DURATION" ]; then
             MESSAGE="{
               \"msg_type\": \"text\",
               \"content\": {
                 \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n⏱️ 耗时: $ESCAPED_DURATION\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
+              }
+            }"
+        elif [ -n "$COST_INFO" ]; then
+            MESSAGE="{
+              \"msg_type\": \"text\",
+              \"content\": {
+                \"text\": \"🤖 Claude Code 完成通知\\n\\n📋 摘要: $ESCAPED_SUMMARY\\n💰 今日累计: \$$ESCAPED_COST\\n\\n⏰ 时间: $TIMESTAMP\\n📂 目录: $(pwd)\"
               }
             }"
         else
