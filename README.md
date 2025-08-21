@@ -1,71 +1,107 @@
-# Claude Code Hook 通知系统
+# 🤖 Claude Code Hook Notification System
 
-智能的 Claude Code 完成通知系统，支持 Lark 机器人推送。
+<div align="center">
 
-## 功能特性
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey)](README.md)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-purple)](https://claude.ai/code)
+[![Shell](https://img.shields.io/badge/shell-bash-green)](README.md)
+[![Python](https://img.shields.io/badge/python-3.7%2B-blue)](README.md)
 
-- 🤖 智能对话摘要生成（支持多媒体消息）
-- ⏱️ 自动计算任务耗时
-- 🔔 Lark 机器人实时通知
-- 📊 详细的执行日志记录
-- 🎛️ 灵活的通知开关控制
+*An intelligent notification system for Claude Code with smart conversation summaries and flexible control options.*
 
-## 通知控制
+[Features](#-features) • [Quick Start](#-quick-start) • [Prerequisites](#-prerequisites) • [Configuration](#-configuration) • [Contributing](#-contributing)
 
-### 方法1：使用切换脚本（推荐）
+🇺🇸 English | [🇨🇳 中文](README_zh.md)
 
+</div>
+
+---
+
+## ✨ Features
+
+- 🧠 **Smart Conversation Summarization** - AI-powered summary generation with multimedia support
+- ⏱️ **Automatic Duration Tracking** - Calculate and display task completion time
+- 🔔 **Real-time Lark Integration** - Instant notifications to your Lark/Feishu workspace
+- 📊 **Comprehensive Logging** - Detailed execution logs with status tracking
+- 🎛️ **Flexible Control System** - Multiple ways to enable/disable notifications
+- 🔒 **Safe Defaults** - Notifications disabled by default for privacy
+- 🚀 **Zero Dependencies** - Pure bash and Python, no external libraries
+
+## 🚀 Quick Start
+
+### 1. Clone the repository
 ```bash
-# 查看当前状态
-./toggle-hooks.sh status
-
-# 禁用通知
-./toggle-hooks.sh off
-
-# 启用通知  
-./toggle-hooks.sh on
+git clone https://github.com/yourusername/claude-code-hooks.git
+cd claude-code-hooks
 ```
 
-### 方法2：使用启动脚本
+### 2. Auto-install with Claude Code
+Open Claude Code and paste this prompt (replace with your Lark webhook):
 
+```
+请帮我安装这个 Claude Code Hook 通知系统。
+
+我的 Lark webhook URL 是：https://open.larksuite.com/open-apis/bot/v2/hook/YOUR_WEBHOOK_HERE
+
+请执行以下安装步骤：
+1. 设置所有脚本文件的执行权限（chmod +x *.sh claude-notify claude-silent）
+2. 复制 config.template.sh 为 config.sh
+3. 在 config.sh 中替换 WEBHOOK_URL 为我提供的地址
+4. 读取当前的 ~/.claude/settings.json 配置
+5. 在 settings.json 中添加 Stop hook 配置，指向当前目录的 send_smart_notification.sh 脚本的绝对路径
+6. 创建 logs 目录（如果不存在）
+7. 运行测试验证安装是否成功
+
+如果 ~/.claude/settings.json 不存在，请创建一个新的配置文件。
+如果已存在 hooks 配置，请合并而不是覆盖现有配置。
+
+安装完成后，请告诉我如何测试通知功能。
+```
+
+### 3. Start using
 ```bash
-# 启动 Claude（默认通知禁用）
+# Default: notifications disabled
 claude
 
-# 启动 Claude 但禁用通知（明确禁用）
-./claude-silent
-
-# 启动 Claude 并启用通知
-./claude-notify
-```
-
-### 方法3：使用环境变量
-
-```bash
-# 临时启用通知
+# Enable notifications
 CC_HOOKS_NOTIFY=on claude
-
-# 持久启用通知（添加到 .bashrc/.zshrc）
-export CC_HOOKS_NOTIFY=on
-
-# 支持的启用值：on/ON/enabled/true/1
-# 默认状态：禁用通知
 ```
 
-## 文件说明
+> 💡 **Pro tip**: See [install.md](install.md) for detailed installation guide and [claude_install_prompt.md](claude_install_prompt.md) for ready-to-copy prompt.
 
-- `send_smart_notification.sh` - 主 Hook 脚本
-- `generate_summary.py` - 智能摘要生成器
-- `toggle-hooks.sh` - 通知开关控制脚本
-- `claude-silent` - 静默启动脚本
-- `logs/` - 执行日志目录
+## 📋 Prerequisites
 
-## 安装配置
+- [Claude Code](https://claude.ai/code) installed
+- Bash shell (macOS/Linux)
+- Python 3.7+
+- Lark/Feishu webhook URL
 
-1. 将脚本路径添加到 Claude Code settings.json 的 hooks 配置中
-2. 确保脚本有执行权限：`chmod +x *.sh`
-3. 根据需要调整 Lark webhook URL
+## 🎛️ Configuration
 
-## 通知示例
+### Control Methods
+
+| Method | Command | Description |
+|--------|---------|-------------|
+| **Environment Variable** | `CC_HOOKS_NOTIFY=on claude` | Temporary enable |
+| **Launch Scripts** | `./claude-notify` | Enable notifications |
+|  | `./claude-silent` | Disable notifications |
+| **Toggle Script** | `./toggle-hooks.sh on/off/status` | Persistent control |
+
+### Environment Variables
+
+| Variable | Values | Default | Description |
+|----------|--------|---------|-------------|
+| `CC_HOOKS_NOTIFY` | `on`, `ON`, `enabled`, `true`, `1` | `(unset)` | Enable notifications |
+
+### Configuration Files
+
+- `.hooks-disabled` - Created by toggle script to disable notifications
+- `logs/hook_execution.log` - Execution logs (auto-created)
+
+## 📱 Notification Example
+
+<div align="center">
 
 ```
 🤖 Claude Code 完成通知
@@ -77,14 +113,139 @@ export CC_HOOKS_NOTIFY=on
 📂 目录: /Users/username/project
 ```
 
-## 快速使用
+</div>
+
+## 📂 Project Structure
+
+```
+claude-code-hooks/
+├── 📄 README.md                    # This file
+├── 📄 README_zh.md                 # Chinese documentation
+├── 📋 install.md                   # Installation guide
+├── 📝 claude_install_prompt.md     # Ready-to-copy Claude prompt
+├── ⚙️ config.template.sh           # Configuration template
+├── ⚙️ send_smart_notification.sh   # Main hook script
+├── 🐍 generate_summary.py          # Smart summary generator
+├── 🔧 toggle-hooks.sh              # Toggle control script
+├── 🔔 claude-notify               # Enable notifications launcher
+├── 🔕 claude-silent               # Disable notifications launcher
+├── 🚫 .gitignore                  # Git ignore rules
+├── 📄 LICENSE                     # MIT License
+└── 📁 logs/                       # Execution logs directory
+    └── 📝 hook_execution.log
+```
+
+## 🛠️ Advanced Usage
+
+### Custom Webhook Integration
+
+The system supports any webhook-compatible service. Simply modify the `WEBHOOK_URL` and message format in `send_smart_notification.sh`:
 
 ```bash
-# 默认禁用通知
-claude
+# Example for Slack
+WEBHOOK_URL="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
 
-# 启用通知方式
-CC_HOOKS_NOTIFY=on claude           # 环境变量
-./claude-notify                     # 启动脚本
-./toggle-hooks.sh on               # 配置文件
+MESSAGE="{
+  \"text\": \"Claude Code task completed: $SUMMARY\"
+}"
 ```
+
+### Summary Customization
+
+Modify `generate_summary.py` to customize summary generation:
+
+```python
+# Adjust summary length
+if len(latest_request) > 50:  # Change from 30 to 50
+    latest_request = latest_request[:50] + "..."
+```
+
+## 🐛 Troubleshooting
+
+<details>
+<summary><strong>Notifications not working?</strong></summary>
+
+1. Check if notifications are enabled:
+   ```bash
+   ./toggle-hooks.sh status
+   ```
+
+2. Verify Claude Code hooks configuration:
+   ```bash
+   cat ~/.claude/settings.json | grep -A 10 hooks
+   ```
+
+3. Check execution logs:
+   ```bash
+   tail -f logs/hook_execution.log
+   ```
+
+</details>
+
+<details>
+<summary><strong>Permission denied errors?</strong></summary>
+
+Make sure all scripts are executable:
+```bash
+chmod +x *.sh claude-notify claude-silent
+```
+
+</details>
+
+<details>
+<summary><strong>Webhook returning 400 errors?</strong></summary>
+
+Check your Lark webhook URL and ensure it's active:
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"msg_type": "text", "content": {"text": "Test"}}' \
+  YOUR_WEBHOOK_URL
+```
+
+</details>
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Setup
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+### Coding Standards
+
+- Use clear, descriptive commit messages
+- Add comments for complex logic
+- Test your changes thoroughly
+- Follow existing code style
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Claude Code](https://claude.ai/code) team for the excellent development environment
+- [Lark/Feishu](https://www.larksuite.com/) for webhook integration capabilities
+- All contributors and users of this project
+
+## 📊 Statistics
+
+![GitHub stars](https://img.shields.io/github/stars/yourusername/claude-code-hooks?style=social)
+![GitHub forks](https://img.shields.io/github/forks/yourusername/claude-code-hooks?style=social)
+![GitHub issues](https://img.shields.io/github/issues/yourusername/claude-code-hooks)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/yourusername/claude-code-hooks)
+
+---
+
+<div align="center">
+
+**[⬆ back to top](#-claude-code-hook-notification-system)**
+
+Made with ❤️ for the Claude Code community
+
+</div>

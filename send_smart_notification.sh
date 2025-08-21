@@ -1,13 +1,20 @@
 #!/bin/bash
 
-# Lark webhook URL
-WEBHOOK_URL="https://open.larksuite.com/open-apis/bot/v2/hook/d3c04484-07a3-4208-ab9a-a7f4ec987e0f"
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 加载配置文件
+CONFIG_FILE="$SCRIPT_DIR/config.sh"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+else
+    echo "错误：配置文件 config.sh 不存在"
+    echo "请复制 config.template.sh 为 config.sh 并配置你的 webhook URL"
+    exit 1
+fi
 
 # 获取当前时间
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-
-# 获取脚本所在目录
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 日志文件路径
 LOG_FILE="$SCRIPT_DIR/logs/hook_execution.log"

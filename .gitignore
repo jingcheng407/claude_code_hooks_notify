@@ -3,3 +3,6 @@ logs/
 
 # 忽略 Hook 配置文件
 .hooks-disabled
+
+# 忽略用户配置文件（包含敏感信息）
+config.sh
