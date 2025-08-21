@@ -79,7 +79,6 @@ CC_HOOKS_NOTIFY=on claude
 ./claude-notify
 ```
 
-> 💡 **Pro tip**: See [install.md](install.md) for detailed installation guide.
 
 ## 📋 Prerequisites
 
@@ -87,7 +86,7 @@ CC_HOOKS_NOTIFY=on claude
 - Bash shell (macOS/Linux)
 - Python 3.7+
 - Node.js (for ccusage cost tracking)
-- Lark/Feishu webhook URL
+- Lark/Feishu webhook URL ([Setup Guide](https://open.larksuite.com/document/client-docs/bot-v3/add-custom-bot))
 
 ## 🎛️ Configuration
 
@@ -145,7 +144,6 @@ You must configure notification language in `config.sh`:
 claude-code-hooks/
 ├── 📄 README.md                    # This file
 ├── 📄 README_zh.md                 # Chinese documentation
-├── 📋 install.md                   # Installation guide
 ├── ⚙️ config.template.sh           # Configuration template
 ├── ⚙️ send_smart_notification.sh   # Main hook script
 ├── 🐍 generate_summary.py          # Smart summary generator

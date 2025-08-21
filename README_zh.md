@@ -79,7 +79,6 @@ CC_HOOKS_NOTIFY=on claude
 ./claude-notify
 ```
 
-> 💡 **小贴士**：查看 [install.md](install.md) 获取详细安装指南。
 
 ## 📋 系统要求
 
@@ -87,7 +86,7 @@ CC_HOOKS_NOTIFY=on claude
 - Bash shell（macOS/Linux）
 - Python 3.7+
 - Node.js（用于 ccusage 成本跟踪）
-- Lark/飞书 webhook URL
+- Lark/飞书 webhook URL （[设置指南](https://open.larksuite.com/document/client-docs/bot-v3/add-custom-bot)）
 
 ## 🎛️ 使用配置
 
@@ -145,7 +144,6 @@ CC_HOOKS_NOTIFY=on claude
 claude-code-hooks/
 ├── 📄 README.md                    # 英文说明文档
 ├── 📄 README_zh.md                 # 中文说明文档（本文件）
-├── 📋 install.md                   # 安装指南
 ├── ⚙️ config.template.sh           # 配置文件模板
 ├── ⚙️ send_smart_notification.sh   # 主 Hook 脚本
 ├── 🐍 generate_summary.py          # 智能摘要生成器
