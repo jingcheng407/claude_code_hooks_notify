@@ -1,79 +1,99 @@
-# Review: Web Terminal 设计评审
+# Review: Web Terminal 设计复评（最新稿）
 
 ## 总体结论
 
-- 方向正确：基于 xterm.js + node-pty + Socket.IO 的方案切中需求，落地简单、扩展性好。
-- 需细化：认证/授权、会话持久化、多标签架构、文件操作安全、性能与背压、生产部署细节目前不够具体，存在安全与稳定性风险。
+- 明显进步：文档已补齐关键安全与工程细节（JWT+密钥文件、Redis 会话、统一的 terminal:* 协议、文件沙箱、Helmet/CORS/限流、背压、Windows 适配、监控与部署清单）。从“设计”提升为“可实现蓝图”。
+- 剩余小缺口：少量接口与配置尚需打磨（CSP 允许清单、健康检查路由、少量重复/可抽取逻辑），不影响进入 MVP 实施。
 
-## 主要问题与缺口
+## 已解决要点（对齐前次评审）
 
-- 认证与授权：仅提出“密码/Token”，缺少用户模型、密码存储、登录流、刷新令牌、角色（只读/可控）与暴力破解防护（限流、锁定）。
-- 会话持久化：需求要求“刷新不丢失”，现用 `socket.id → pty`（易失）。缺少持久会话 ID、重连/恢复协议、过期与回收策略、跨进程存储（Redis/文件）。
-- 多标签设计：前端展示单实例；未定义“标签 ID ↔ PTY”映射、同 Socket 复用 vs 多 Socket、最大标签数、内存回收。
-- 文件传输安全：上传/下载端点无鉴权、无路径校验、无目录沙箱，存在路径遍历与任意读写风险；无大小/类型限制、覆盖策略、配额与审计。
-- 安全默认值：CORS `*`、内联脚本、无 CSP/Helmet、无 CSRF、防火墙与 IP 白名单未细化；HTTPS 与 Cookie 安全属性未明确。
-- 性能与背压：未定义 PTY→WS 背压策略、输出节流与缓冲上限；`yes`/大量输出会撑爆内存；10ms 响应目标不现实（应拆分端到端/本地渲染/网络延迟）。
-- TMUX 集成：提到可恢复，但未定义何时启用、如何与每标签/多用户映射、读写权限控制、登录 shell 环境一致性。
-- 跨平台细节：Windows shell（powershell/cmd）与编码、TERM/LANG 设置、登录 shell（`-l`）与 rc 文件加载未说明。
-- 错误与资源回收：子进程树清理、异常保护、最大并发/每用户限额、超时与 idle 关闭、内存/CPU 上限未定义。
+- 认证与授权：JWT 验证与中间件、登录限流、只读/可控权限在服务端强制。支持 `JWT_SECRET_FILE` 优先。
+- 会话持久化：Redis 存储 `sessionId/terminalId`，提供 `getSession()`、`restoreTerminal()`、`getActiveTerminalCount()`、idle 清理策略。
+- 协议与多标签：采用 `terminal:create/data/resize/restore/created/restored/data`，前端所有事件包含 `terminalId`，并将输出写入对应标签实例。
+- 文件安全：`BASE_DIR` 沙箱、`realpath` 校验（含文件不存在时父目录检查）、大小与类型限制、下载鉴权与审计。
+- 安全默认：Helmet+CSP、CORS 多源（`CORS_ORIGINS`）、HTTP 限流、HTTPS/HSTS 与 Nginx 模板。
+- 性能与可观测：背压丢弃与分块发送、指标/日志/Sentry、环境变量清单、Docker/Compose 示例、`server.start()`。
+- 跨平台与 tmux：Windows 默认 `powershell.exe`，非 Windows 可选 tmux。tmux 以“用户会话 + window(terminalId)”统一命名。
 
-## 安全与隔离建议
+## 仍需完善的点（建议修正）
 
-- 最小暴露面：默认仅绑定 `127.0.0.1`，公网需显式开启并强制 HTTPS。
-- 鉴权：Socket.IO 握手携带 Bearer/JWT，HTTP 端点要求同一令牌；支持只读会话共享码。
-- 隔离：运行专用系统用户；限制根目录（chroot/sandbox/容器卷）；限制可写路径与命令白名单（可选）。
-- 限流：`express-rate-limit` + WebSocket 消息速率限制；上传大小上限；Body 解析大小上限。
-- 文件沙箱：强制在 `BASE_DIR` 内读写，路径规范化/拒绝符号链出逃；下载加入显式允许清单。
-- Headers/CSP：`helmet`、严格 CSP（禁用内联脚本，移至静态文件）、`SameSite=strict`、`Secure` Cookie。
+- 健康检查路由：文档提示了 `/health` 与 HealthChecker，但 Express 未挂载路由。建议新增：
+  - `app.get('/health', async (req,res)=>res.json(await healthChecker.check()))`，并将 `HealthChecker` 依赖通过构造注入。
 
-## 会话与多标签
+- Helmet CSP 与前端 CDN：当前 Helmet 的 `scriptSrc` 仅 `self`（生产禁用 `unsafe-eval`），而前端示例从 `cdn.jsdelivr.net` 引用 xterm。需二选一：
+  - 将前端静态资源改为本地托管（推荐生产做法，CSP 更严格）。
+  - 或在 Helmet CSP 中加入 `https://cdn.jsdelivr.net` 到 `scriptSrc/styleSrc/fontSrc` 允许清单（与 Nginx add_header 保持一致）。
 
-- 模型：`userId → sessionId(cookie/JWT) → terminalId(n) → pty(pid)`；存储至 Redis（支持多进程/重启）。
-- 恢复：前端刷新重连时带 `terminalId`，后端复用已有 PTY；设置 idle 与最大存活时间。
-- TMUX 模式：开关化；启用时 `userId` 专属 tmux session，多客户端可只读/可写附着。
+- 复用 CORS 解析：`parseOrigins` 在 `setupSecurity` 与 `setupSocketIO` 重复定义，可抽成私有方法以避免配置漂移。
 
-## 文件传输
+- WS 入站限速（可选增强）：已限制单次输入长度（1KB）。可考虑增加“消息频率限流/令牌桶”以抵御高频写入攻击。
 
-- 上传：`multer` 限制大小/类型；目标路径校验 + 拒绝覆盖（或版本化）；审计日志。
-- 下载：必须鉴权；仅允许 `BASE_DIR` 内；可选打包目录下载（zip）。
-- 可观测性：进度回调、失败重试、断点续传（后续版）。
+- 默认密钥：`getJWTSecret()` 的默认值为占位符，文档中应强调生产必须经 `JWT_SECRET_FILE` 或安全注入提供强密钥。
 
-## 性能与稳定性
+## 建议补丁（示意）
 
-- 背压：按 Socket 缓冲长度暂停/恢复 PTY；分块/节流写入 xterm。
-- 大输出：速率限制与截断策略（提示用户）；最大并发/每用户 PTY 上限。
-- 指标：事件循环滞后、WS 往返、PTY 吞吐、内存水位；健康检查。
+- 健康检查路由与依赖注入
 
-## 前端体验
+```javascript
+// server.js 片段
+const { HealthChecker } = require('./monitoring');
 
-- 插件：`SearchAddon/WebLinks/Unicode11/Fit`；移动端键盘与复制粘贴、Bracketed paste 支持。
-- 主题：预置主题完整定义；可持久化到 `localStorage`。
-- 多标签：轻量 Tab 管理器（虚拟化 DOM）、每标签独立 `terminalId` 与状态。
+constructor(port = 3000) {
+  // ...
+  this.healthChecker = new HealthChecker(this.sessionManager.redis, this.sessionManager);
+}
 
-## 测试与验收
+setupRoutes() {
+  // ... 现有路由
+  this.app.get('/health', async (req, res) => {
+    const status = await this.healthChecker.check();
+    res.status(status.status === 'healthy' ? 200 : 503).json(status);
+  });
+}
+```
 
-- 框架：单元（Jest/Vitest）、E2E（Playwright，含 WS）、安全（Supertest + 恶意用例）。
-- 关键用例：刷新恢复、并发 50+ 连接、大量输出背压、路径遍历/符号链逃逸、只读共享、上传越权。
-- 基准：本地回显延迟 P50/P95、最大稳定吞吐、内存泄漏巡检（长时运行）。
+- Helmet CSP 放行 CDN（若不改为本地托管）
 
-## 部署与运维
+```javascript
+// 仅当使用 CDN 时生效
+const cdn = 'https://cdn.jsdelivr.net';
+this.app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", process.env.NODE_ENV !== 'production' ? "'unsafe-eval'" : undefined, cdn].filter(Boolean),
+      styleSrc: ["'self'", "'unsafe-inline'", cdn],
+      fontSrc: ["'self'", 'data:', cdn],
+      connectSrc: ["'self'", 'ws:', 'wss:'],
+      imgSrc: ["'self'", 'data:']
+    }
+  }
+}));
+```
 
-- 反代：Nginx/Websocket 超时、`proxy_set_header` 全量、`proxy_read_timeout` 拉长、限流与基本认证。
-- Docker：非 root 用户、只读根文件系统、仅挂载受限卷；健康检查与多阶段构建。
-- 配置：`.env`（端口、BASE_DIR、JWT_SECRET、CORS_ALLOWLIST、TLS 路径、限额等），文档化。
+- DRY 化 CORS 来源
 
-## 开放问题
+```javascript
+getCorsOrigins() {
+  return (process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['http://localhost:3000']).map(s=>s.trim());
+}
+// setupSecurity
+const corsOrigins = this.getCorsOrigins();
+// setupSocketIO
+const corsOrigins = this.getCorsOrigins();
+```
 
-- 角色：是否支持“观看/可控”两种权限？如何授予与撤销？
-- 数据持久：是否需要跨重启保活（必须用 tmux）？默认策略？
-- 范围限制：是否允许任意系统命令？是否需要命令审计与回放？
-- 平台支持：Windows 是否一等公民？默认 shell/编码策略？
-- 合规：是否需要操作日志保存/脱敏与保留周期？
+## 测试与验收补充
 
-## 建议的下一步
+- 健康检查：
+  - 启动后 `GET /health` 返回 200 with `status=healthy`；Redis 断开时返回 503 且 message 友好。
+- CSP/CDN：
+  - 在启用 CDN 模式时，打开页面不出现 CSP 拦截；在本地托管模式时，移除外部域名并保持脚本正常加载。
+- WS 限速（若实现）：
+  - 高频 `terminal:data` 输入被平滑/拒绝，服务不中断，审计日志可见。
 
-- 明确 MVP 范围与验收标准：本机单用户、JWT、会话恢复、文件在 `BASE_DIR` 内、背压、基础测试通过。
-- 补全规范文档：认证流、会话/标签状态机、文件沙箱规则、性能目标与上限、部署清单。
-- 落实现有样例代码的缺口：`handleData/handleResize`、鉴权中间件、CSP/Helmet、限流、沙箱校验与错误处理。
-- 选定测试框架并写 8–12 个关键用例先行护栏。
+## 结论
+
+- 文档已足够指导实现。建议先按本复评修正 3 处小点（/health、CSP/CDN、CORS DRY），随后进入 MVP 开发与 E2E 校验。
+- 如需，我可以直接基于该设计生成最小可跑骨架，并附带 `/health` 路由、CSP/CDN 配置分支与若干基础测试用例。
 
