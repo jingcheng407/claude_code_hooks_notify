@@ -97,9 +97,31 @@ fi
 
 # 如果有命令行参数，使用它作为自定义消息
 if [ $# -gt 0 ]; then
-    SUMMARY="$1"
-    DURATION=""
-    echo "Using command line summary: $SUMMARY" >> "$LOG_FILE"
+    ARG_MESSAGE="$1"
+    echo "Using command line argument: $ARG_MESSAGE" >> "$LOG_FILE"
+    
+    # 检查命令行参数是否包含时长信息（用|||分隔）
+    if [[ "$ARG_MESSAGE" == *"|||"* ]]; then
+        SUMMARY=$(python3 -c "
+import sys
+arg_message = '''$ARG_MESSAGE'''
+if '|||' in arg_message:
+    print(arg_message.split('|||')[0].strip())
+else:
+    print(arg_message)
+")
+        DURATION=$(python3 -c "
+import sys
+arg_message = '''$ARG_MESSAGE'''
+if '|||' in arg_message:
+    print(arg_message.split('|||')[1].strip())
+")
+        echo "Parsed from argument - Summary: $SUMMARY, Duration: $DURATION" >> "$LOG_FILE"
+    else
+        SUMMARY="$ARG_MESSAGE"
+        DURATION=""
+        echo "Using command line summary without duration: $SUMMARY" >> "$LOG_FILE"
+    fi
 fi
 
 # 获取今日总花费信息
@@ -151,6 +173,40 @@ if [ "$LANG_SETTING" != "en" ] && [ "$LANG_SETTING" != "zh" ]; then
     echo "错误：必须在 config.sh 中设置 NOTIFICATION_LANG 为 'en' 或 'zh'" >> "$LOG_FILE"
     echo "Error: NOTIFICATION_LANG must be set to 'en' or 'zh' in config.sh"
     exit 1
+fi
+
+# 检查对话时长，只有超过1分钟的对话才发送通知
+if [ -n "$DURATION" ]; then
+    echo "Checking conversation duration: $DURATION" >> "$LOG_FILE"
+    
+    # 解析时长，提取秒数
+    TOTAL_DURATION_SECONDS=$(python3 -c "
+import re
+duration = '''$DURATION'''
+# 匹配 '分' 和 '秒' 的格式: 例如 '2分30秒' 或 '45秒'
+match = re.match(r'(?:(\d+)分)?(?:(\d+)秒)?', duration)
+if match:
+    minutes = int(match.group(1)) if match.group(1) else 0
+    seconds = int(match.group(2)) if match.group(2) else 0
+    total_seconds = minutes * 60 + seconds
+    print(total_seconds)
+else:
+    print(0)
+")
+    
+    echo "Total duration in seconds: $TOTAL_DURATION_SECONDS" >> "$LOG_FILE"
+    
+    # 如果对话时长少于60秒，不发送通知
+    if [ "$TOTAL_DURATION_SECONDS" -lt 60 ]; then
+        echo "Conversation duration ($TOTAL_DURATION_SECONDS seconds) is less than 60 seconds, skipping notification" >> "$LOG_FILE"
+        echo "对话时长少于1分钟，跳过通知发送"
+        exit 0
+    else
+        echo "Conversation duration ($TOTAL_DURATION_SECONDS seconds) is >= 60 seconds, proceeding with notification" >> "$LOG_FILE"
+    fi
+else
+    # 如果没有时长信息（可能是手动触发或其他情况），默认发送通知
+    echo "No duration information available, proceeding with notification" >> "$LOG_FILE"
 fi
 
 # 根据语言设置构造消息内容
