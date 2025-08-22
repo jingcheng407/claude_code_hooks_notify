@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# claude-telegram - 启动Claude Code并启用Telegram双向通信
+# claude-telegram - 启动Claude Code并启用Telegram通知
 #
 # 这个脚本会：
 # 1. 启用Claude Code hooks通知
@@ -17,7 +17,7 @@ export TELEGRAM_MODE=on
 # 启动Claude Code并传递所有参数
 echo "🚀 启动Claude Code (Telegram双通道模式)"
 echo "📱 通知将同时发送到Lark和Telegram"
-echo "🔄 Telegram支持双向交互"
+echo "📤 单向推送通知"
 echo ""
 
 claude "$@"

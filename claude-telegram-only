@@ -17,7 +17,7 @@ export TELEGRAM_MODE=only
 # 启动Claude Code并传递所有参数
 echo "🚀 启动Claude Code (仅Telegram模式)"
 echo "📱 通知将仅发送到Telegram"
-echo "🔄 支持双向交互"
+echo "📤 单向推送通知"
 echo ""
 
 claude "$@"

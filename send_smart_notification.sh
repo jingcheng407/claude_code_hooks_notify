@@ -328,15 +328,13 @@ except Exception as e:
     # 使用telegram_bridge发送消息
     export TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
     
-    # 支持用户绑定密钥或直接chat_id
-    if [ -n "$TELEGRAM_USER_KEY" ]; then
-        export TELEGRAM_USER_KEY="$TELEGRAM_USER_KEY"
-    elif [ -n "$TELEGRAM_CHAT_ID" ]; then
-        export TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
-    else
-        echo "ERROR: TELEGRAM_USER_KEY or TELEGRAM_CHAT_ID must be set" >> "$LOG_FILE"
+    # 检查必要的Telegram配置
+    if [ -z "$TELEGRAM_CHAT_ID" ]; then
+        echo "ERROR: TELEGRAM_CHAT_ID must be set" >> "$LOG_FILE"
         return 1
     fi
+    
+    export TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
     
     TELEGRAM_RESULT=$(python3 "$SCRIPT_DIR/telegram_bridge.py" send "$TELEGRAM_TEXT" 2>&1)
     TELEGRAM_EXIT_CODE=$?
