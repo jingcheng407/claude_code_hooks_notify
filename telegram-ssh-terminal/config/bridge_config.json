@@ -1,0 +1,10 @@
+{
+  "device_id": "test_device",
+  "device_name": "Test Computer",
+  "relay_url": "ws://localhost:8080/device",
+  "allowed_telegram_users": [
+    "123456"
+  ],
+  "work_dir": "/tmp",
+  "session_persistent": false
+}
