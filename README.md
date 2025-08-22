@@ -84,16 +84,16 @@ CC_HOOKS_NOTIFY=on claude
 ./claude-telegram-only
 ```
 
-### 4. Telegram Interactive Usage
+### 4. Test the installation
 ```bash
-# Test Telegram connection
-./claude_interactive.sh test
+# Test Lark notification with short duration (will be skipped)
+CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Test short duration|||30秒"
 
-# Send message to Telegram
-./claude_interactive.sh send "Hello from Claude!"
+# Test Lark notification with long duration (will be sent)
+CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Test long duration|||2分30秒"
 
-# Wait for user reply (with timeout)
-./claude_interactive.sh send-wait "Should I continue?" 300
+# Test manual notification
+CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Manual test notification"
 ```
 
 
