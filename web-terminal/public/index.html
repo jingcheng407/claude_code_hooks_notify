@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Terminal</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="login-container">
+            <div class="login-header">
+                <h1>Web Terminal</h1>
+                <p>Secure terminal access</p>
+            </div>
+            
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                
+                <button type="submit" id="login-btn" class="btn btn-primary">Login</button>
+                
+                <div id="login-error" class="error-message hidden"></div>
+            </form>
+            
+            <div class="login-footer">
+                <p>Default: admin / admin123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Terminal Screen -->
+    <div id="terminal-screen" class="screen">
+        <div class="terminal-header">
+            <div class="terminal-nav">
+                <div class="nav-left">
+                    <span class="terminal-title">Web Terminal</span>
+                    <span id="connection-status" class="status-indicator">●</span>
+                </div>
+                
+                <div class="nav-center">
+                    <div class="terminal-tabs">
+                        <div id="terminal-tabs-container"></div>
+                        <button id="new-terminal-btn" class="btn btn-small">+</button>
+                    </div>
+                </div>
+                
+                <div class="nav-right">
+                    <select id="theme-selector" class="theme-selector">
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                        <option value="high-contrast">High Contrast</option>
+                    </select>
+                    <button id="logout-btn" class="btn btn-small">Logout</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="terminal-content">
+            <div id="terminal-container" class="terminal-container">
+                <!-- Terminal instances will be created here -->
+            </div>
+            
+            <div id="terminal-status" class="terminal-status">
+                <span id="terminal-info">Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="screen loading">
+        <div class="loading-spinner"></div>
+        <p>Connecting...</p>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="error-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Error</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="error-message"></p>
+            </div>
+            <div class="modal-footer">
+                <button id="error-ok" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Terminal Settings</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="terminal-cols">Columns</label>
+                    <input type="number" id="terminal-cols" min="20" max="200" value="80">
+                </div>
+                
+                <div class="form-group">
+                    <label for="terminal-rows">Rows</label>
+                    <input type="number" id="terminal-rows" min="10" max="100" value="24">
+                </div>
+                
+                <div class="form-group">
+                    <label for="terminal-shell">Shell</label>
+                    <select id="terminal-shell">
+                        <option value="/bin/bash">Bash</option>
+                        <option value="/bin/zsh">Zsh</option>
+                        <option value="/bin/sh">Sh</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="settings-cancel" class="btn">Cancel</button>
+                <button id="settings-create" class="btn btn-primary">Create Terminal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.4/dist/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/terminal.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

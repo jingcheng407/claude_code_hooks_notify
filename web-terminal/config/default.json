@@ -1,0 +1,23 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "terminal": {
+    "defaultShell": "/bin/bash",
+    "maxTerminals": 5,
+    "idleTimeout": 1800000,
+    "cleanupInterval": 300000
+  },
+  "security": {
+    "jwtExpiresIn": "24h",
+    "bcryptRounds": 10,
+    "rateLimitWindow": 900000,
+    "rateLimitMax": 5
+  },
+  "performance": {
+    "backpressureHighWatermark": 16384,
+    "outputChunkSize": 4096,
+    "maxBufferSize": 1000
+  }
+}
