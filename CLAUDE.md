@@ -4,88 +4,113 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Claude Code Hook notification system that sends intelligent Lark/Feishu notifications when Claude Code sessions end. It integrates conversation summarization, duration tracking, and daily cost reporting.
+This is a Claude Code Hook notification system that sends intelligent notifications to Lark/Feishu and Telegram when Claude Code sessions end. It features smart conversation summarization, duration-based filtering, and daily cost tracking.
 
 ## Architecture
 
 The system consists of four core components:
 
 1. **send_smart_notification.sh** - Main hook script that integrates with Claude Code's Stop event
-2. **generate_summary.py** - Parses Claude Code JSONL transcript files to extract conversation summaries, tool usage, and duration
-3. **config.sh** - Configuration file (user-created from template) containing webhook URL and language settings
-4. **claude-notify/claude-silent** - Launcher scripts that control the CC_HOOKS_NOTIFY environment variable
+2. **generate_summary.py** - Parses Claude Code JSONL transcript files to extract conversation summaries, tool usage, and session duration
+3. **telegram_bridge.py** - Simplified one-way Telegram message sender
+4. **launcher scripts** - Control scripts that set appropriate environment variables
+
+## Key Features
+
+### Duration Filtering
+- Only conversations lasting >60 seconds trigger notifications
+- Filters out short test sessions and brief interactions
+- Parses Chinese duration formats ("2分30秒", "45秒") into total seconds
+- Manual triggers (without duration data) always send notifications
+
+### Notification Channels
+- **Primary**: Lark/Feishu webhooks with rich formatting
+- **Secondary**: Telegram one-way push notifications
+- **Modes**: Lark-only, Telegram-only, or dual-channel
+
+### Smart Summarization  
+- Extracts latest user request (truncated to 50 chars)
+- Lists assistant tool usage (Read, Edit, Bash, etc.)
+- Calculates session duration from first user message to last assistant response
+- Handles multimedia messages (images + text)
 
 ## Configuration System
 
-The system uses a template-based configuration approach:
-- `config.template.sh` contains the template with placeholder values
-- Users copy this to `config.sh` and fill in their actual webhook URL and language preference
-- `config.sh` is git-ignored to protect sensitive webhook URLs
+Template-based configuration in `config.template.sh` → `config.sh`:
+- `WEBHOOK_URL` - Lark webhook endpoint
+- `NOTIFICATION_LANG` - Must be "en" or "zh" (no bilingual mode)
+- `TELEGRAM_BOT_TOKEN` - Bot token from @BotFather  
+- `TELEGRAM_CHAT_ID` - Target chat ID (simplified from previous user binding system)
+- `TELEGRAM_MODE` - "off", "on" (dual), or "only"
 
-Critical environment variable: `CC_HOOKS_NOTIFY` must be set to "on"/"ON"/"enabled"/"true"/"1" to enable notifications (disabled by default for security).
+Critical: `CC_HOOKS_NOTIFY` environment variable must be "on"/"enabled"/"true"/"1" to enable notifications.
 
 ## Data Flow
 
-1. Claude Code triggers Stop hook → calls `send_smart_notification.sh`
-2. Hook receives JSON with `transcript_path` pointing to JSONL conversation log
-3. `generate_summary.py` parses JSONL to extract:
-   - Latest user request (truncated to 50 chars)
-   - Assistant tool usage (Read, Edit, Bash, etc.)
-   - Session duration (from first user message to last assistant response)
-4. Hook queries `ccusage daily --json` for today's total cost across all projects
-5. Constructs language-specific Lark message with summary, duration, cost, timestamp, directory
-6. Sends HTTP POST to configured webhook URL
+1. Claude Code Stop event → `send_smart_notification.sh`
+2. Hook receives JSON with `transcript_path` to JSONL conversation log
+3. `generate_summary.py` parses conversation data and calculates duration
+4. **Duration check**: Skip if <60 seconds, proceed if ≥60 seconds or no duration data
+5. Query `ccusage daily --json` for today's total cost (optional)
+6. Construct language-specific message with summary, duration, cost, timestamp, directory
+7. Send to configured endpoints (Lark webhook and/or Telegram API)
 
-## Key Integration Points
-
-- **Claude Code Settings**: Hook must be registered in `~/.claude/settings.json` under `hooks.stop`
-- **ccusage**: Optional dependency for cost tracking via `npm install -g ccusage`
-- **Lark API**: Uses webhook format with `msg_type: "text"` and specific content structure
-- **JSONL Parsing**: Handles Claude Code's conversation transcript format with ISO 8601 timestamps
-
-## Common Commands
+## Common Development Commands
 
 Testing the notification system:
 ```bash
-# Enable notifications and test
-export CC_HOOKS_NOTIFY=on
-echo "test message" | ./send_smart_notification.sh
+# Test short duration (should be skipped)
+CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Test short|||30秒"
 
-# Use launcher scripts
-./claude-notify  # Starts Claude with notifications enabled
-./claude-silent  # Starts Claude with notifications disabled
+# Test long duration (should be sent)  
+CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Test long|||2分30秒"
 
-# Check logs
+# Test manual trigger (always sent)
+CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Manual test"
+
+# Check execution logs
 tail -f logs/hook_execution.log
 
-# Test with custom message
-CC_HOOKS_NOTIFY=on ./send_smart_notification.sh "Custom test message"
+# Test telegram bridge directly
+python3 telegram_bridge.py send "Test message"
+```
+
+Launch modes:
+```bash
+./claude-notify      # Lark notifications only
+./claude-silent      # No notifications  
+./claude-telegram     # Lark + Telegram
+./claude-telegram-only # Telegram only
 ```
 
 Setup commands:
 ```bash
 # Set executable permissions
-chmod +x *.sh claude-notify claude-silent
+chmod +x *.sh claude-notify claude-silent claude-telegram*
 
 # Create config from template
 cp config.template.sh config.sh
-# Edit config.sh to set WEBHOOK_URL and NOTIFICATION_LANG
+# Edit config.sh to set WEBHOOK_URL, NOTIFICATION_LANG, and optional Telegram settings
 
 # Create logs directory
 mkdir -p logs
+
+# Install optional cost tracking
+npm install -g ccusage
 ```
 
-## Language Configuration
+## Integration Points
 
-The system requires explicit language selection in config.sh:
-- `NOTIFICATION_LANG="en"` - English notifications with "Today's Total" cost display  
-- `NOTIFICATION_LANG="zh"` - Chinese notifications with "今日累计" cost display
+- **Claude Code Settings**: Hook registered in `~/.claude/settings.json` under `hooks.stop`
+- **ccusage**: Optional CLI tool for cost tracking integration
+- **Lark API**: Standard webhook format with `msg_type: "text"`
+- **Telegram Bot API**: Simple sendMessage endpoint for one-way notifications
+- **JSONL Format**: Handles Claude Code's conversation transcript with ISO 8601 timestamps
 
-No bilingual mode - language must be explicitly chosen to avoid confusion.
+## Security & Safety
 
-## Security Notes
-
-- config.sh contains webhook URLs and is git-ignored
-- Notifications are disabled by default (safe defaults principle)
-- Hook validates CC_HOOKS_NOTIFY environment variable before executing
-- Webhook URLs should be kept private and not committed to version control
+- Notifications disabled by default (safe defaults principle)
+- `config.sh` is git-ignored to protect webhook URLs and tokens
+- Duration filtering prevents spam from short test interactions
+- No sensitive data logged in execution logs
+- Simplified Telegram integration removes user binding complexity
