@@ -97,7 +97,7 @@ def extract_conversation_summary(transcript_path):
         if len(user_messages) > 1:
             summary_parts.append(f"共{len(user_messages)}轮对话")
         
-        summary_text = " | ".join(summary_parts) if summary_parts else "完成了一次对话会话"
+        summary_text = "\\n".join(summary_parts) if summary_parts else "完成了一次对话会话"
         
         # 如果有耗时信息，单独返回
         if duration_text:
