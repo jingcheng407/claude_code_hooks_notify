@@ -11,7 +11,6 @@ def extract_conversation_summary(transcript_path):
             return "无法找到对话记录文件"
         
         user_messages = []
-        assistant_actions = []
         last_user_timestamp = None
         last_assistant_timestamp = None
         
@@ -55,21 +54,12 @@ def extract_conversation_summary(transcript_path):
                             if timestamp:
                                 last_user_timestamp = timestamp
                     
-                    # 提取助手消息、工具使用和时间戳
+                    # 提取助手时间戳
                     elif entry.get('type') == 'assistant':
-                        message = entry.get('message', {})
-                        content = message.get('content', [])
                         timestamp = entry.get('timestamp')
                         
                         if timestamp:
                             last_assistant_timestamp = timestamp
-                        
-                        if isinstance(content, list):
-                            for item in content:
-                                if item.get('type') == 'tool_use':
-                                    tool_name = item.get('name', '')
-                                    if tool_name:
-                                        assistant_actions.append(tool_name)
                             
                 except json.JSONDecodeError:
                     continue
@@ -103,12 +93,6 @@ def extract_conversation_summary(transcript_path):
             if len(latest_request) > 50:
                 latest_request = latest_request[:50] + "..."
             summary_parts.append(f"最近请求: {latest_request}")
-        
-        if assistant_actions:
-            unique_actions = list(set(assistant_actions))
-            summary_parts.append(f"执行了: {', '.join(unique_actions[:3])}")
-            if len(unique_actions) > 3:
-                summary_parts.append(f"等{len(unique_actions)}个操作")
         
         if len(user_messages) > 1:
             summary_parts.append(f"共{len(user_messages)}轮对话")
